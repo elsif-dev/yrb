@@ -218,4 +218,70 @@ RSpec.describe Y::ProseMirror do
       expect(fragment2[0][0].to_s).to eq("Updated")
     end
   end
+
+  describe "round-trip conversion" do
+    it "round-trips simple paragraph" do
+      json = {
+        "type" => "doc",
+        "content" => [{
+          "type" => "paragraph",
+          "content" => [{ "type" => "text", "text" => "Hello, World!" }]
+        }]
+      }
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      described_class.json_to_fragment(fragment, json)
+      result = described_class.fragment_to_json(fragment)
+      expect(result).to eq(json)
+    end
+
+    it "round-trips heading with attributes" do
+      json = {
+        "type" => "doc",
+        "content" => [{
+          "type" => "heading",
+          "attrs" => { "level" => "2" },
+          "content" => [{ "type" => "text", "text" => "My Heading" }]
+        }]
+      }
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      described_class.json_to_fragment(fragment, json)
+      result = described_class.fragment_to_json(fragment)
+      expect(result).to eq(json)
+    end
+
+    it "round-trips multiple paragraphs" do
+      json = {
+        "type" => "doc",
+        "content" => [
+          { "type" => "paragraph", "content" => [{ "type" => "text", "text" => "First" }] },
+          { "type" => "paragraph", "content" => [{ "type" => "text", "text" => "Second" }] }
+        ]
+      }
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      described_class.json_to_fragment(fragment, json)
+      result = described_class.fragment_to_json(fragment)
+      expect(result).to eq(json)
+    end
+
+    it "round-trips nested blockquote" do
+      json = {
+        "type" => "doc",
+        "content" => [{
+          "type" => "blockquote",
+          "content" => [{
+            "type" => "paragraph",
+            "content" => [{ "type" => "text", "text" => "Quoted" }]
+          }]
+        }]
+      }
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      described_class.json_to_fragment(fragment, json)
+      result = described_class.fragment_to_json(fragment)
+      expect(result).to eq(json)
+    end
+  end
 end
