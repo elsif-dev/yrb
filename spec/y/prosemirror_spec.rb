@@ -170,4 +170,52 @@ RSpec.describe Y::ProseMirror do
       expect(children[1]).to be_a(Y::XMLText)
     end
   end
+
+  describe ".update_fragment" do
+    it "replaces existing content" do
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+
+      initial_json = {
+        "type" => "doc",
+        "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "Old" }] }]
+      }
+      described_class.json_to_fragment(fragment, initial_json)
+      expect(fragment[0][0].to_s).to eq("Old")
+
+      new_json = {
+        "type" => "doc",
+        "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "New" }] }]
+      }
+      described_class.update_fragment(fragment, new_json)
+      expect(fragment.size).to eq(1)
+      expect(fragment[0][0].to_s).to eq("New")
+    end
+
+    it "preserves CRDT history (syncable)" do
+      doc1 = Y::Doc.new
+      fragment1 = doc1.get_xml_fragment("default")
+      initial = {
+        "type" => "doc",
+        "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "Hello" }] }]
+      }
+      described_class.json_to_fragment(fragment1, initial)
+
+      doc2 = Y::Doc.new
+      doc2.sync(doc1.diff(doc2.state))
+
+      updated = {
+        "type" => "doc",
+        "content" => [{ "type" => "paragraph", "content" => [{ "type" => "text", "text" => "Updated" }] }]
+      }
+      state_before = doc2.state
+      described_class.update_fragment(fragment1, updated)
+
+      update_diff = doc1.diff(state_before)
+      doc2.sync(update_diff)
+
+      fragment2 = doc2.get_xml_fragment("default")
+      expect(fragment2[0][0].to_s).to eq("Updated")
+    end
+  end
 end

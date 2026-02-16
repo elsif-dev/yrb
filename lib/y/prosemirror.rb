@@ -137,5 +137,13 @@ module Y
       end
     end
     private_class_method :write_text_node
+
+    def self.update_fragment(fragment, json)
+      fragment.document.transact do
+        current_size = fragment.size
+        fragment.slice!(0, current_size) if current_size > 0
+        json_to_fragment(fragment, json)
+      end
+    end
   end
 end
