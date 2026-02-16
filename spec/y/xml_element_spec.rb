@@ -143,6 +143,33 @@ RSpec.describe Y::XMLElement do
     expect(xml_element.to_s).to eq("<root></root>")
   end
 
+  it "iterates over children with each" do
+    doc = Y::Doc.new
+    xml_element = doc.get_xml_element("root")
+    xml_element << "A"
+    xml_element.push_text("hello")
+    xml_element << "B"
+
+    children = []
+    xml_element.each { |child| children << child }
+
+    expect(children.length).to eq(3)
+    expect(children[0]).to be_a(Y::XMLElement)
+    expect(children[1]).to be_a(Y::XMLText)
+    expect(children[2]).to be_a(Y::XMLElement)
+  end
+
+  it "supports Enumerable methods like map" do
+    doc = Y::Doc.new
+    xml_element = doc.get_xml_element("root")
+    xml_element << "A"
+    xml_element << "B"
+
+    tags = xml_element.map(&:tag)
+
+    expect(tags).to eq(%w[A B])
+  end
+
   context "when syncing documents" do
     it "updates remote xml from local xml" do
       local = Y::Doc.new

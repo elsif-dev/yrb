@@ -102,4 +102,60 @@ RSpec.describe Y::XMLFragment do
 
     expect(xml_fragment[0].tag).to eq(b.tag)
   end
+
+  it "inserts text at end of children list" do
+    doc = Y::Doc.new
+    xml_fragment = doc.get_xml_fragment("default")
+    text = xml_fragment.push_text("Hello")
+
+    expect(text).to be_a(Y::XMLText)
+    expect(text.to_s).to eq("Hello")
+    expect(xml_fragment.to_s).to eq("Hello")
+  end
+
+  it "inserts text at front of children list" do
+    doc = Y::Doc.new
+    xml_fragment = doc.get_xml_fragment("default")
+    xml_fragment << "A"
+    text = xml_fragment.unshift_text("Front")
+
+    expect(text).to be_a(Y::XMLText)
+    expect(xml_fragment.to_s).to start_with("Front")
+  end
+
+  it "inserts text at specific index" do
+    doc = Y::Doc.new
+    xml_fragment = doc.get_xml_fragment("default")
+    xml_fragment << "A"
+    xml_fragment << "B"
+    text = xml_fragment.insert_text(1, "Middle")
+
+    expect(text).to be_a(Y::XMLText)
+    expect(xml_fragment[1]).to be_a(Y::XMLText)
+  end
+
+  it "iterates over children with each" do
+    doc = Y::Doc.new
+    xml_fragment = doc.get_xml_fragment("default")
+    xml_fragment << "A"
+    xml_fragment << "B"
+    xml_fragment << "C"
+
+    children = []
+    xml_fragment.each { |child| children << child }
+
+    expect(children.length).to eq(3)
+    expect(children.map(&:tag)).to eq(%w[A B C])
+  end
+
+  it "supports Enumerable methods like select" do
+    doc = Y::Doc.new
+    xml_fragment = doc.get_xml_fragment("default")
+    xml_fragment << "A"
+    xml_fragment << "B"
+
+    result = xml_fragment.select { |child| child.tag == "A" }
+
+    expect(result.length).to eq(1)
+  end
 end
