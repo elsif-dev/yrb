@@ -28,5 +28,57 @@ module Y
       hash = Base64.strict_encode64(digest[0, n].pack("C*"))
       "#{mark_type}--#{hash}"
     end
+
+    def self.fragment_to_json(fragment)
+      {
+        "type" => "doc",
+        "content" => children_to_json(fragment)
+      }
+    end
+
+    def self.children_to_json(parent)
+      result = []
+      parent.each do |child|
+        case child
+        when Y::XMLElement
+          result << element_to_json(child)
+        when Y::XMLText
+          result.concat(xml_text_to_json(child))
+        end
+      end
+      result
+    end
+    private_class_method :children_to_json
+
+    def self.element_to_json(element)
+      node = { "type" => element.tag }
+
+      attrs = element.attrs.dup
+      marks_json = attrs.delete("marks")
+      node["attrs"] = attrs unless attrs.empty?
+      node["marks"] = JSON.parse(marks_json) if marks_json
+
+      content = children_to_json(element)
+      node["content"] = content unless content.empty?
+
+      node
+    end
+    private_class_method :element_to_json
+
+    def self.xml_text_to_json(xml_text)
+      xml_text.diff.map do |chunk|
+        text_node = { "type" => "text", "text" => chunk.insert.to_s }
+        if chunk.attrs && !chunk.attrs.empty?
+          marks = chunk.attrs.map do |encoded_name, value|
+            mark = { "type" => decode_mark_name(encoded_name) }
+            mark["attrs"] = value unless value.nil? || (value.is_a?(Hash) && value.empty?)
+            mark
+          end
+          text_node["marks"] = marks
+        end
+        text_node
+      end
+    end
+    private_class_method :xml_text_to_json
   end
 end

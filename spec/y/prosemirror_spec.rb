@@ -45,4 +45,52 @@ RSpec.describe Y::ProseMirror do
       expect(a).not_to eq(b)
     end
   end
+
+  describe ".fragment_to_json" do
+    it "converts empty fragment to doc JSON" do
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      json = described_class.fragment_to_json(fragment)
+      expect(json).to eq({ "type" => "doc", "content" => [] })
+    end
+
+    it "converts fragment with paragraph and plain text" do
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      para = fragment << "paragraph"
+      para.push_text("Hello, World!")
+      json = described_class.fragment_to_json(fragment)
+      expect(json).to eq({
+        "type" => "doc",
+        "content" => [{
+          "type" => "paragraph",
+          "content" => [{ "type" => "text", "text" => "Hello, World!" }]
+        }]
+      })
+    end
+
+    it "converts fragment with element attributes" do
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      heading = fragment << "heading"
+      heading.attr_level = "2"
+      heading.push_text("Title")
+      json = described_class.fragment_to_json(fragment)
+      heading_node = json["content"].first
+      expect(heading_node["type"]).to eq("heading")
+      expect(heading_node["attrs"]).to eq({ "level" => "2" })
+    end
+
+    it "converts nested elements" do
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      blockquote = fragment << "blockquote"
+      para = blockquote << "paragraph"
+      para.push_text("Quoted text")
+      json = described_class.fragment_to_json(fragment)
+      expect(json["content"].first["type"]).to eq("blockquote")
+      expect(json.dig("content", 0, "content", 0, "type")).to eq("paragraph")
+      expect(json.dig("content", 0, "content", 0, "content", 0, "text")).to eq("Quoted text")
+    end
+  end
 end
