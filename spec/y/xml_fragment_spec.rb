@@ -158,4 +158,51 @@ RSpec.describe Y::XMLFragment do
 
     expect(result.length).to eq(1)
   end
+
+  context "Tiptap-compatible document structure" do
+    it "builds a document with paragraphs and formatted text" do
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      paragraph = fragment << "paragraph"
+      text = paragraph.push_text("")
+      text.insert(0, "Hello World!")
+      text.format(0, 6, { "bold" => true })
+
+      expect(fragment.size).to eq(1)
+      expect(fragment[0]).to be_a(Y::XMLElement)
+      expect(fragment[0].tag).to eq("paragraph")
+
+      diff = text.diff
+      expect(diff.length).to eq(2)
+      expect(diff[0].insert).to eq("Hello ")
+      expect(diff[0].attrs).to include("bold" => true)
+      expect(diff[1].insert).to eq("World!")
+    end
+
+    it "syncs document between two docs" do
+      doc1 = Y::Doc.new
+      fragment1 = doc1.get_xml_fragment("default")
+      para = fragment1 << "paragraph"
+      para.push_text("Hello from doc1")
+
+      doc2 = Y::Doc.new
+      update = doc1.diff(doc2.state)
+      doc2.sync(update)
+
+      fragment2 = doc2.get_xml_fragment("default")
+      expect(fragment2.size).to eq(1)
+      expect(fragment2[0].tag).to eq("paragraph")
+    end
+
+    it "iterates over fragment children" do
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      fragment << "heading"
+      fragment << "paragraph"
+      fragment << "paragraph"
+
+      tags = fragment.map(&:tag)
+      expect(tags).to eq(%w[heading paragraph paragraph])
+    end
+  end
 end
