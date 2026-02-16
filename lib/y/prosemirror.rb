@@ -80,5 +80,62 @@ module Y
       end
     end
     private_class_method :xml_text_to_json
+
+    def self.json_to_fragment(fragment, json)
+      return unless json["content"]
+      json["content"].each { |node_json| write_node(fragment, node_json) }
+    end
+
+    def self.write_node(parent, node_json)
+      if node_json["type"] == "text"
+        write_text_node(parent, node_json)
+      else
+        write_element_node(parent, node_json)
+      end
+    end
+    private_class_method :write_node
+
+    def self.write_element_node(parent, node_json)
+      element = parent << node_json["type"]
+
+      if node_json["attrs"]
+        node_json["attrs"].each do |key, value|
+          element.document.current_transaction do |tx|
+            element.send(:yxml_element_insert_attribute, tx, key, value.to_s)
+          end
+        end
+      end
+
+      if node_json["marks"]
+        element.document.current_transaction do |tx|
+          element.send(:yxml_element_insert_attribute, tx, "marks", node_json["marks"].to_json)
+        end
+      end
+
+      if node_json["content"]
+        node_json["content"].each { |child_json| write_node(element, child_json) }
+      end
+    end
+    private_class_method :write_element_node
+
+    def self.write_text_node(parent, node_json)
+      text_content = node_json["text"] || ""
+      marks = node_json["marks"] || []
+
+      text = parent.push_text("")
+
+      if marks.empty?
+        text.insert(0, text_content)
+      else
+        attrs = {}
+        marks.each do |mark|
+          mark_attrs = mark["attrs"]
+          encoded_name = encode_mark_name(mark["type"], mark_attrs)
+          attrs[encoded_name] = mark_attrs || {}
+        end
+        text.insert(0, text_content, attrs)
+      end
+    end
+    private_class_method :write_text_node
   end
 end

@@ -93,4 +93,81 @@ RSpec.describe Y::ProseMirror do
       expect(json.dig("content", 0, "content", 0, "content", 0, "text")).to eq("Quoted text")
     end
   end
+
+  describe ".json_to_fragment" do
+    it "populates fragment from simple paragraph JSON" do
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      json = {
+        "type" => "doc",
+        "content" => [{
+          "type" => "paragraph",
+          "content" => [{ "type" => "text", "text" => "Hello, World!" }]
+        }]
+      }
+      described_class.json_to_fragment(fragment, json)
+      expect(fragment.size).to eq(1)
+      expect(fragment[0].tag).to eq("paragraph")
+      expect(fragment[0][0].to_s).to eq("Hello, World!")
+    end
+
+    it "populates fragment with element attributes" do
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      json = {
+        "type" => "doc",
+        "content" => [{
+          "type" => "heading",
+          "attrs" => { "level" => "2" },
+          "content" => [{ "type" => "text", "text" => "Title" }]
+        }]
+      }
+      described_class.json_to_fragment(fragment, json)
+      heading = fragment[0]
+      expect(heading.tag).to eq("heading")
+      expect(heading.attrs).to include("level" => "2")
+    end
+
+    it "populates nested elements" do
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      json = {
+        "type" => "doc",
+        "content" => [{
+          "type" => "blockquote",
+          "content" => [{
+            "type" => "paragraph",
+            "content" => [{ "type" => "text", "text" => "Quoted" }]
+          }]
+        }]
+      }
+      described_class.json_to_fragment(fragment, json)
+      expect(fragment[0].tag).to eq("blockquote")
+      expect(fragment[0][0].tag).to eq("paragraph")
+    end
+
+    it "populates fragment with formatted text" do
+      doc = Y::Doc.new
+      fragment = doc.get_xml_fragment("default")
+      json = {
+        "type" => "doc",
+        "content" => [{
+          "type" => "paragraph",
+          "content" => [
+            { "type" => "text", "text" => "bold", "marks" => [{ "type" => "bold" }] },
+            { "type" => "text", "text" => " normal" }
+          ]
+        }]
+      }
+      described_class.json_to_fragment(fragment, json)
+      # Verify structure was created (two text nodes in the paragraph)
+      para = fragment[0]
+      expect(para.tag).to eq("paragraph")
+      # There should be two XMLText children
+      children = para.to_a
+      expect(children.length).to eq(2)
+      expect(children[0]).to be_a(Y::XMLText)
+      expect(children[1]).to be_a(Y::XMLText)
+    end
+  end
 end
