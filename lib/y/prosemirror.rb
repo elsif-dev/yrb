@@ -5,15 +5,16 @@ require "digest"
 require "base64"
 
 module Y
+  # rubocop:disable Metrics/ModuleLength
   module ProseMirror
-    MARK_HASH_PATTERN = /\A(.+)(--[a-zA-Z0-9+\/=]{8})\z/
+    MARK_HASH_PATTERN = %r{\A(.+)(--[a-zA-Z0-9+/=]{8})\z}
 
     def self.decode_mark_name(encoded)
       match = encoded.match(MARK_HASH_PATTERN)
       match ? match[1] : encoded
     end
 
-    def self.encode_mark_name(mark_type, attrs)
+    def self.encode_mark_name(mark_type, attrs) # rubocop:disable Metrics/AbcSize
       return mark_type if attrs.nil? || attrs.empty?
 
       # Algorithm inspired by y-prosemirror:
@@ -65,13 +66,16 @@ module Y
     end
     private_class_method :element_to_json
 
-    def self.xml_text_to_json(xml_text)
+    def self.xml_text_to_json(xml_text) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
       xml_text.diff.map do |chunk|
         text_node = { "type" => "text", "text" => chunk.insert.to_s }
         if chunk.attrs && !chunk.attrs.empty?
           marks = chunk.attrs.map do |encoded_name, value|
             mark = { "type" => decode_mark_name(encoded_name) }
-            mark["attrs"] = value unless value.nil? || (value.is_a?(Hash) && value.empty?)
+            unless value.nil? || (value.is_a?(Hash) && value.empty?)
+              mark["attrs"] =
+                value
+            end
             mark
           end
           text_node["marks"] = marks
@@ -83,6 +87,7 @@ module Y
 
     def self.json_to_fragment(fragment, json)
       return unless json["content"]
+
       json["content"].each { |node_json| write_node(fragment, node_json) }
     end
 
@@ -95,30 +100,31 @@ module Y
     end
     private_class_method :write_node
 
-    def self.write_element_node(parent, node_json)
+    def self.write_element_node(parent, node_json) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
       element = parent << node_json["type"]
 
-      if node_json["attrs"]
-        node_json["attrs"].each do |key, value|
-          element.document.current_transaction do |tx|
-            element.send(:yxml_element_insert_attribute, tx, key, value.to_s)
-          end
+      node_json["attrs"]&.each do |key, value|
+        element.document.current_transaction do |tx|
+          element.send(:yxml_element_insert_attribute, tx, key, value.to_s)
         end
       end
 
       if node_json["marks"]
         element.document.current_transaction do |tx|
-          element.send(:yxml_element_insert_attribute, tx, "marks", node_json["marks"].to_json)
+          element.send(:yxml_element_insert_attribute, tx, "marks",
+                       node_json["marks"].to_json)
         end
       end
 
-      if node_json["content"]
-        node_json["content"].each { |child_json| write_node(element, child_json) }
+      return unless node_json["content"]
+
+      node_json["content"].each do |child_json|
+        write_node(element, child_json)
       end
     end
     private_class_method :write_element_node
 
-    def self.write_text_node(parent, node_json)
+    def self.write_text_node(parent, node_json) # rubocop:disable Metrics/MethodLength
       text_content = node_json["text"] || ""
       marks = node_json["marks"] || []
 
@@ -141,9 +147,10 @@ module Y
     def self.update_fragment(fragment, json)
       fragment.document.transact do
         current_size = fragment.size
-        fragment.slice!(0, current_size) if current_size > 0
+        fragment.slice!(0, current_size) if current_size.positive?
         json_to_fragment(fragment, json)
       end
     end
   end
+  # rubocop:enable Metrics/ModuleLength
 end
