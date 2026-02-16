@@ -1,10 +1,15 @@
 use crate::utils::map_rhash_to_attrs;
+use crate::ydiff::YDiff;
 use crate::yvalue::YValue;
 use crate::yxml_fragment::YXmlFragment;
 use crate::{YTransaction, YXmlElement};
-use magnus::{Error, IntoValue, RHash, Ruby, Value};
+use magnus::block::Proc;
+use magnus::value::Qnil;
+use magnus::{Error, IntoValue, RArray, RHash, Ruby, Value};
 use std::cell::RefCell;
-use yrs::{Any, GetString, Text, Xml, XmlNode, XmlTextRef};
+use yrs::types::text::YChange;
+use yrs::types::Delta;
+use yrs::{Any, GetString, Observable, Text, Xml, XmlNode, XmlTextRef};
 
 #[magnus::wrap(class = "Y::XMLText")]
 pub(crate) struct YXmlText(pub(crate) RefCell<XmlTextRef>);
@@ -181,6 +186,109 @@ impl YXmlText {
         let tx = tx.as_ref().unwrap();
 
         self.0.borrow().get_string(tx)
+    }
+
+    pub(crate) fn yxml_text_diff(&self, transaction: &YTransaction) -> RArray {
+        let ruby = unsafe { Ruby::get_unchecked() };
+        let tx = transaction.transaction();
+        let tx = tx.as_ref().unwrap();
+
+        let array = ruby.ary_new();
+        for diff in self.0.borrow().diff(tx, YChange::identity).iter() {
+            let yvalue = YValue::from(diff.insert.clone());
+            let insert = yvalue.0.into_inner();
+            let attributes = diff.attributes.as_ref().map_or_else(
+                || None,
+                |boxed_attrs| {
+                    let attributes = ruby.hash_new();
+                    for (key, value) in boxed_attrs.iter() {
+                        let key = key.to_string();
+                        let value = YValue::from(value.clone()).0.into_inner();
+                        attributes.aset(key, value).expect("cannot add value");
+                    }
+                    Some(attributes)
+                },
+            );
+            let ydiff = YDiff {
+                ydiff_insert: insert,
+                ydiff_attrs: attributes,
+            };
+            array
+                .push(ydiff.into_value_with(&ruby))
+                .expect("cannot push diff to array");
+        }
+        array
+    }
+
+    pub(crate) fn yxml_text_observe(&self, block: Proc) -> Result<u32, Error> {
+        let ruby = unsafe { Ruby::get_unchecked() };
+        let delta_insert = ruby.to_symbol("insert").to_static();
+        let delta_retain = ruby.to_symbol("retain").to_static();
+        let delta_delete = ruby.to_symbol("delete").to_static();
+        let attributes = ruby.to_symbol("attributes").to_static();
+
+        let subscription_id = self
+            .0
+            .borrow_mut()
+            .observe(move |transaction, text_event| {
+                let ruby = unsafe { Ruby::get_unchecked() };
+                let delta = text_event.delta(transaction);
+                for change in delta.iter() {
+                    let payload = ruby.hash_new();
+                    match change {
+                        Delta::Inserted(value, attrs) => {
+                            let yvalue = YValue::from(value.clone());
+                            payload
+                                .aset(delta_insert, yvalue.0.into_inner())
+                                .expect("cannot set insert");
+                            if let Some(a) = attrs {
+                                let attrs_hash = ruby.hash_new();
+                                for (key, val) in a.iter() {
+                                    let yvalue = YValue::from(val.clone());
+                                    attrs_hash
+                                        .aset(key.to_string(), yvalue.0.into_inner())
+                                        .expect("cannot add attr");
+                                }
+                                payload
+                                    .aset(attributes, attrs_hash)
+                                    .expect("cannot set attrs");
+                            }
+                        }
+                        Delta::Retain(index, attrs) => {
+                            let yvalue = YValue::from(*index);
+                            payload
+                                .aset(delta_retain, yvalue.0.into_inner())
+                                .expect("cannot set retain");
+                            if let Some(a) = attrs {
+                                let attrs_hash = ruby.hash_new();
+                                for (key, val) in a.iter() {
+                                    let yvalue = YValue::from(val.clone());
+                                    attrs_hash
+                                        .aset(key.to_string(), yvalue.0.into_inner())
+                                        .expect("cannot add attr");
+                                }
+                                payload
+                                    .aset(attributes, attrs_hash)
+                                    .expect("cannot set attrs");
+                            }
+                        }
+                        Delta::Deleted(index) => {
+                            let yvalue = YValue::from(*index);
+                            payload
+                                .aset(delta_delete, yvalue.0.into_inner())
+                                .expect("cannot set delete");
+                        }
+                    }
+                    let _ = block.call::<(RHash,), Qnil>((payload,));
+                }
+            })
+            .into();
+
+        Ok(subscription_id)
+    }
+
+    pub(crate) fn yxml_text_unobserve(&self, subscription_id: u32) {
+        self.0.borrow_mut().unobserve(subscription_id);
     }
 }
 

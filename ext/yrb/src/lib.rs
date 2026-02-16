@@ -461,6 +461,24 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
         .expect("cannot define private method: yxml_fragment_push_front");
     yxml_fragment
         .define_private_method(
+            "yxml_fragment_push_text_back",
+            method!(YXmlFragment::yxml_fragment_push_text_back, 2),
+        )
+        .expect("cannot define private method: yxml_fragment_push_text_back");
+    yxml_fragment
+        .define_private_method(
+            "yxml_fragment_push_text_front",
+            method!(YXmlFragment::yxml_fragment_push_text_front, 2),
+        )
+        .expect("cannot define private method: yxml_fragment_push_text_front");
+    yxml_fragment
+        .define_private_method(
+            "yxml_fragment_insert_text",
+            method!(YXmlFragment::yxml_fragment_insert_text, 3),
+        )
+        .expect("cannot define private method: yxml_fragment_insert_text");
+    yxml_fragment
+        .define_private_method(
             "yxml_fragment_remove_range",
             method!(YXmlFragment::yxml_fragment_remove_range, 3),
         )
@@ -488,6 +506,9 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
             method!(YXmlText::yxml_text_attributes, 1),
         )
         .expect("cannot define private method: yxml_text_attributes");
+    yxml_text
+        .define_private_method("yxml_text_diff", method!(YXmlText::yxml_text_diff, 1))
+        .expect("cannot define private method: yxml_text_diff");
     yxml_text
         .define_private_method("yxml_text_format", method!(YXmlText::yxml_text_format, 4))
         .expect("cannot define private method: yxml_text_format");
@@ -554,6 +575,15 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     yxml_text
         .define_private_method("yxml_text_to_s", method!(YXmlText::yxml_text_to_s, 1))
         .expect("cannot define private method: yxml_text_to_s");
+    yxml_text
+        .define_private_method("yxml_text_observe", method!(YXmlText::yxml_text_observe, 1))
+        .expect("cannot define private method: yxml_text_observe");
+    yxml_text
+        .define_private_method(
+            "yxml_text_unobserve",
+            method!(YXmlText::yxml_text_unobserve, 1),
+        )
+        .expect("cannot define private method: yxml_text_unobserve");
 
     let yawareness = module
         .define_class("Awareness", ruby.class_object())
