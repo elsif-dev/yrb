@@ -173,6 +173,36 @@ module Y
       current_transaction(&:state_v2)
     end
 
+    # Capture a snapshot of the current document state. A snapshot can be
+    # used later to reconstruct the document as it was at this point.
+    #
+    # @return [Y::Snapshot]
+    def snapshot
+      ydoc_snapshot
+    end
+
+    # Encode document state at a past snapshot as a v1 update. Apply the
+    # returned bytes to a fresh document to reconstruct the state at that
+    # snapshot. Requires the document to have been created with gc: false.
+    #
+    # @param snapshot [Y::Snapshot]
+    # @return [::Array<Integer>] Binary encoded update
+    # @raise [RuntimeError] if document has garbage collection enabled
+    def diff_from_snapshot(snapshot)
+      ydoc_encode_state_from_snapshot_v1(snapshot)
+    end
+
+    # Encode document state at a past snapshot as a v2 update. Apply the
+    # returned bytes to a fresh document to reconstruct the state at that
+    # snapshot. Requires the document to have been created with gc: false.
+    #
+    # @param snapshot [Y::Snapshot]
+    # @return [::Array<Integer>] Binary encoded update
+    # @raise [RuntimeError] if document has garbage collection enabled
+    def diff_from_snapshot_v2(snapshot)
+      ydoc_encode_state_from_snapshot_v2(snapshot)
+    end
+
     # Synchronizes this document with the diff from another document
     #
     # @param diff [::Array<Integer>] Binary encoded update
@@ -308,6 +338,26 @@ module Y
     #
     # @param [Proc] block
     # @return [Integer]
+    # @!visibility private
+
+    # @!method ydoc_snapshot
+    #   Captures a snapshot of the current document state
+    #
+    # @return [Y::Snapshot]
+    # @!visibility private
+
+    # @!method ydoc_encode_state_from_snapshot_v1(snapshot)
+    #   Encodes document state from a snapshot using v1 encoding
+    #
+    # @param snapshot [Y::Snapshot]
+    # @return [Array<Integer>]
+    # @!visibility private
+
+    # @!method ydoc_encode_state_from_snapshot_v2(snapshot)
+    #   Encodes document state from a snapshot using v2 encoding
+    #
+    # @param snapshot [Y::Snapshot]
+    # @return [Array<Integer>]
     # @!visibility private
   end
 end
