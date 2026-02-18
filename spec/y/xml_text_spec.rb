@@ -223,6 +223,60 @@ RSpec.describe Y::XMLText do
     end
   end
 
+  it "returns diff for plain text" do
+    doc = Y::Doc.new
+    xml_text = doc.get_xml_text("my xml text")
+    xml_text << "Hello, World!"
+
+    diff = xml_text.diff
+
+    expect(diff.length).to eq(1)
+    expect(diff.first).to be_a(Y::Diff)
+    expect(diff.first.insert).to eq("Hello, World!")
+  end
+
+  # rubocop:disable RSpec/ExampleLength, RSpec/MultipleExpectations
+  it "returns diff for formatted text" do
+    doc = Y::Doc.new
+    xml_text = doc.get_xml_text("my xml text")
+    xml_text << "Hello World!"
+    xml_text.format(0, 6, { "bold" => true })
+
+    diff = xml_text.diff
+
+    expect(diff.length).to eq(2)
+    expect(diff[0].insert).to eq("Hello ")
+    expect(diff[0].attrs).to include("bold" => true)
+    expect(diff[1].insert).to eq("World!")
+  end
+  # rubocop:enable RSpec/ExampleLength, RSpec/MultipleExpectations
+
+  it "observes changes via attach with block" do
+    doc = Y::Doc.new
+    xml_text = doc.get_xml_text("my xml text")
+
+    changes = nil
+    xml_text.attach { |delta| changes = delta }
+
+    xml_text << "Hello"
+
+    expect(changes).not_to be_nil
+  end
+
+  it "detaches observer" do
+    doc = Y::Doc.new
+    xml_text = doc.get_xml_text("my xml text")
+
+    count = 0
+    sub_id = xml_text.attach { |_delta| count += 1 }
+
+    xml_text << "Hello"
+    xml_text.detach(sub_id)
+    xml_text << "World"
+
+    expect(count).to eq(1)
+  end
+
   context "when syncing documents" do
     it "updates remote XMLText from local XMLText" do
       local = Y::Doc.new

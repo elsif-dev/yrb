@@ -3,7 +3,7 @@ use crate::yxml_element::YXmlElement;
 use crate::yxml_text::YXmlText;
 use magnus::{IntoValue, RArray, Ruby, Value};
 use std::cell::RefCell;
-use yrs::{GetString, XmlElementPrelim, XmlFragment, XmlFragmentRef, XmlNode};
+use yrs::{GetString, XmlElementPrelim, XmlFragment, XmlFragmentRef, XmlNode, XmlTextPrelim};
 
 #[magnus::wrap(class = "Y::XMLFragment")]
 pub(crate) struct YXmlFragment(pub(crate) RefCell<XmlFragmentRef>);
@@ -88,6 +88,40 @@ impl YXmlFragment {
 
         let node = XmlElementPrelim::empty(tag);
         YXmlElement::from(self.0.borrow_mut().push_front(tx, node))
+    }
+
+    pub(crate) fn yxml_fragment_push_text_back(
+        &self,
+        transaction: &YTransaction,
+        content: String,
+    ) -> YXmlText {
+        let mut tx = transaction.transaction();
+        let tx = tx.as_mut().unwrap();
+        let text = XmlTextPrelim::new(content.as_str());
+        YXmlText::from(self.0.borrow_mut().push_back(tx, text))
+    }
+
+    pub(crate) fn yxml_fragment_push_text_front(
+        &self,
+        transaction: &YTransaction,
+        content: String,
+    ) -> YXmlText {
+        let mut tx = transaction.transaction();
+        let tx = tx.as_mut().unwrap();
+        let text = XmlTextPrelim::new(content.as_str());
+        YXmlText::from(self.0.borrow_mut().push_front(tx, text))
+    }
+
+    pub(crate) fn yxml_fragment_insert_text(
+        &self,
+        transaction: &YTransaction,
+        index: u32,
+        content: String,
+    ) -> YXmlText {
+        let text = XmlTextPrelim::new(content.as_str());
+        let mut tx = transaction.transaction();
+        let tx = tx.as_mut().unwrap();
+        YXmlText::from(self.0.borrow_mut().insert(tx, index, text))
     }
 
     pub(crate) fn yxml_fragment_remove_range(

@@ -14,6 +14,8 @@ module Y
   #
   #   puts xml_element.to_s
   class XMLElement
+    include Enumerable
+
     # @!attribute [r] document
     #
     # @return [Y::Doc] The document this array belongs to
@@ -62,6 +64,25 @@ module Y
 
     alias attributes attrs
 
+    # Returns the value of a single attribute
+    #
+    # @param name [String] the attribute name
+    # @return [String, nil]
+    def get_attribute(name)
+      document.current_transaction { |tx| yxml_element_get_attribute(tx, name) }
+    end
+
+    # Sets an attribute on this element
+    #
+    # @param name [String] the attribute name
+    # @param value [String] the attribute value
+    # @return [void]
+    def set_attribute(name, value)
+      document.current_transaction do |tx|
+        yxml_element_insert_attribute(tx, name, value.to_s)
+      end
+    end
+
     # Returns first child in list or nil if no child exists
     #
     # @return [Y::XMLElement]
@@ -69,6 +90,26 @@ module Y
       child = document.current_transaction { |tx| yxml_element_first_child(tx) }
       child&.document = document
       child
+    end
+
+    # Iterate over direct child nodes
+    #
+    # @yield [Y::XMLElement, Y::XMLText, Y::XMLFragment]
+    # @return [self]
+    def each(&block)
+      return enum_for(:each) unless block_given?
+
+      document.current_transaction do |tx|
+        s = yxml_element_size(tx)
+        i = 0
+        while i < s
+          node = yxml_element_get(tx, i)
+          node&.document = document
+          block.call(node)
+          i += 1
+        end
+      end
+      self
     end
 
     # Insert text into element at given index
@@ -526,6 +567,13 @@ module Y
       yxml_text_unobserve(subscription_id)
     end
 
+    # Returns a list of Diff objects representing formatted chunks of text
+    #
+    # @return [Array<Y::Diff>]
+    def diff
+      document.current_transaction { |tx| yxml_text_diff(tx) }
+    end
+
     # Format text
     #
     # @param index [Integer]
@@ -884,14 +932,34 @@ module Y
     # @param tx [Y::Transaction]
     # @return [void]
 
+    # @!method yxml_text_diff(tx)
+    #
+    # @param tx [Y::Transaction]
+    # @return [Array<Y::Diff>]
+
     # @!method yxml_text_unobserve(subscription_id)
     #
     # @param subscription_id [Integer]
     # @return [void]
   end
 
-  # @!visibility private
+  # A XMLFragment
+  #
+  # Someone should not instantiate a fragment directly, but use
+  # {Y::Doc#get_xml_fragment} instead.
+  #
+  # XMLFragment is the root container type used by Tiptap/ProseMirror
+  # for collaborative documents. Use {Y::Doc#get_xml_fragment} with
+  # the name "default" to access the Tiptap document root.
+  #
+  # @example
+  #   doc = Y::Doc.new
+  #   xml_fragment = doc.get_xml_fragment("default")
+  #
+  #   puts xml_fragment.to_s
   class XMLFragment
+    include Enumerable
+
     # @!attribute [r] document
     #
     # @return [Y::Doc] The document this array belongs to
@@ -980,6 +1048,69 @@ module Y
     end
 
     alias push <<
+
+    # Insert new text at the end of this fragment's child list
+    #
+    # The optional str argument initializes the text node with its value
+    #
+    # @param str [String]
+    # @return [Y::XMLText]
+    def push_text(str = "")
+      text = document.current_transaction do |tx|
+        yxml_fragment_push_text_back(tx, str)
+      end
+      text.document = document
+      text
+    end
+
+    # Insert new text at the front of this fragment's child list
+    #
+    # The optional str argument initializes the text node with its value
+    #
+    # @param str [String]
+    # @return [Y::XMLText]
+    def unshift_text(str = "")
+      text = document.current_transaction do |tx|
+        yxml_fragment_push_text_front(tx, str)
+      end
+      text.document = document
+      text
+    end
+
+    # Insert text into fragment at given index
+    #
+    # Optional input is pushed to the text if provided
+    #
+    # @param index [Integer]
+    # @param input [String]
+    # @return [Y::XMLText]
+    def insert_text(index, input = "")
+      text = document.current_transaction do |tx|
+        yxml_fragment_insert_text(tx, index, input)
+      end
+      text.document = document
+      text
+    end
+
+    # Iterate over direct child nodes
+    #
+    # @yield [Y::XMLElement, Y::XMLText, Y::XMLFragment]
+    # @return [self]
+    def each(&block)
+      return enum_for(:each) unless block_given?
+
+      document.current_transaction do |tx|
+        s = yxml_fragment_len(tx)
+        i = 0
+        while i < s
+          node = yxml_fragment_get(tx, i)
+          node&.document = document
+          block.call(node)
+          i += 1
+        end
+      end
+      self
+    end
 
     # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
@@ -1135,6 +1266,25 @@ module Y
     #
     # @param tx [Y::Transaction]
     # @return [String]
+
+    # @!method yxml_fragment_push_text_back(tx, text)
+    #
+    # @param tx [Y::Transaction]
+    # @param text [String]
+    # @return [Y::XMLText]
+
+    # @!method yxml_fragment_push_text_front(tx, text)
+    #
+    # @param tx [Y::Transaction]
+    # @param text [String]
+    # @return [Y::XMLText]
+
+    # @!method yxml_fragment_insert_text(tx, index, text)
+    #
+    # @param tx [Y::Transaction]
+    # @param index [Integer]
+    # @param text [String]
+    # @return [Y::XMLText]
   end
 
   # rubocop:enable Metrics/ClassLength
