@@ -1,16 +1,17 @@
 use crate::yarray::YArray;
 use crate::ymap::YMap;
+use crate::ysnapshot::YSnapshot;
 use crate::ytext::YText;
 use crate::yxml_element::YXmlElement;
 use crate::yxml_fragment::YXmlFragment;
 use crate::yxml_text::YXmlText;
 use crate::YTransaction;
 use magnus::block::Proc;
-use magnus::{Error, Integer, RArray, Ruby, Value};
+use magnus::{Error, Integer, RArray, RHash, Ruby, Value};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use yrs::updates::decoder::Decode;
-use yrs::updates::encoder::{Encoder, EncoderV2};
+use yrs::updates::encoder::{Encode, Encoder, EncoderV1, EncoderV2};
 use yrs::{Doc, OffsetKind, Options, ReadTxn, StateVector, SubscriptionId, Transact};
 
 #[magnus::wrap(class = "Y::Doc")]
@@ -19,13 +20,21 @@ pub(crate) struct YDoc(pub(crate) RefCell<Doc>);
 unsafe impl Send for YDoc {}
 
 impl YDoc {
-    pub(crate) fn ydoc_new(client_id: &[Value]) -> Self {
+    pub(crate) fn ydoc_new(args: &[Value]) -> Self {
         let mut options = Options::default();
-        if client_id.len() == 1 {
-            let value = client_id.first().unwrap();
-            options.client_id = Integer::from_value(*value).unwrap().to_u64().unwrap();
-        }
         options.offset_kind = OffsetKind::Utf16;
+
+        for arg in args {
+            if let Some(int) = Integer::from_value(*arg) {
+                options.client_id = int.to_u64().unwrap();
+            } else if let Some(hash) = RHash::from_value(*arg) {
+                if let Some(gc_val) = hash.get(magnus::Symbol::new("gc")) {
+                    if let Ok(gc_bool) = gc_val.try_convert::<bool>() {
+                        options.skip_gc = !gc_bool;
+                    }
+                }
+            }
+        }
 
         let doc = Doc::with_options(options);
         Self(RefCell::new(doc))
@@ -113,5 +122,52 @@ impl YDoc {
             })
             .map(|v| v.into())
             .map_err(|err| Error::new(ruby.exception_runtime_error(), err.to_string()))
+    }
+
+    pub(crate) fn ydoc_snapshot(&self) -> YSnapshot {
+        let doc = self.0.borrow();
+        let txn = doc.transact();
+        let snapshot = txn.snapshot();
+        YSnapshot::from(snapshot)
+    }
+
+    pub(crate) fn ydoc_encode_state_from_snapshot_v1(
+        &self,
+        snapshot: &YSnapshot,
+    ) -> Result<Vec<u8>, Error> {
+        let ruby = Ruby::get().unwrap();
+        let doc = self.0.borrow();
+        let txn = doc.transact();
+        let mut encoder = EncoderV1::new();
+        txn.encode_state_from_snapshot(&snapshot.0, &mut encoder)
+            .map(|_| encoder.to_vec())
+            .map_err(|_e| {
+                Error::new(
+                    ruby.exception_runtime_error(),
+                    "cannot encode state from snapshot: document was created with \
+                     garbage collection enabled. Use Y::Doc.new(gc: false) to \
+                     enable snapshot support.",
+                )
+            })
+    }
+
+    pub(crate) fn ydoc_encode_state_from_snapshot_v2(
+        &self,
+        snapshot: &YSnapshot,
+    ) -> Result<Vec<u8>, Error> {
+        let ruby = Ruby::get().unwrap();
+        let doc = self.0.borrow();
+        let txn = doc.transact();
+        let mut encoder = EncoderV2::new();
+        txn.encode_state_from_snapshot(&snapshot.0, &mut encoder)
+            .map(|_| encoder.to_vec())
+            .map_err(|_e| {
+                Error::new(
+                    ruby.exception_runtime_error(),
+                    "cannot encode state from snapshot: document was created with \
+                     garbage collection enabled. Use Y::Doc.new(gc: false) to \
+                     enable snapshot support.",
+                )
+            })
     }
 }

@@ -125,6 +125,18 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
 
     ydoc.define_private_method("ydoc_observe_update", method!(YDoc::ydoc_observe_update, 1))
         .expect("cannot define private method: ydoc_observe_update");
+    ydoc.define_private_method("ydoc_snapshot", method!(YDoc::ydoc_snapshot, 0))
+        .expect("cannot define private method: ydoc_snapshot");
+    ydoc.define_private_method(
+        "ydoc_encode_state_from_snapshot_v1",
+        method!(YDoc::ydoc_encode_state_from_snapshot_v1, 1),
+    )
+    .expect("cannot define private method: ydoc_encode_state_from_snapshot_v1");
+    ydoc.define_private_method(
+        "ydoc_encode_state_from_snapshot_v2",
+        method!(YDoc::ydoc_encode_state_from_snapshot_v2, 1),
+    )
+    .expect("cannot define private method: ydoc_encode_state_from_snapshot_v2");
 
     let ymap = module
         .define_class("Map", ruby.class_object())
