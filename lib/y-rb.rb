@@ -18,7 +18,6 @@ require_relative "y/text"
 require_relative "y/xml"
 require_relative "y/transaction"
 require_relative "y/version"
-require_relative "y/prosemirror"
 
 module Y
 end

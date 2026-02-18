@@ -64,6 +64,25 @@ module Y
 
     alias attributes attrs
 
+    # Returns the value of a single attribute
+    #
+    # @param name [String] the attribute name
+    # @return [String, nil]
+    def get_attribute(name)
+      document.current_transaction { |tx| yxml_element_get_attribute(tx, name) }
+    end
+
+    # Sets an attribute on this element
+    #
+    # @param name [String] the attribute name
+    # @param value [String] the attribute value
+    # @return [void]
+    def set_attribute(name, value)
+      document.current_transaction do |tx|
+        yxml_element_insert_attribute(tx, name, value.to_s)
+      end
+    end
+
     # Returns first child in list or nil if no child exists
     #
     # @return [Y::XMLElement]
