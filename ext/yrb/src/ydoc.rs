@@ -7,11 +7,11 @@ use crate::yxml_fragment::YXmlFragment;
 use crate::yxml_text::YXmlText;
 use crate::YTransaction;
 use magnus::block::Proc;
-use magnus::{Error, Integer, RArray, RHash, Ruby, Value};
+use magnus::{Error, Integer, RArray, RHash, Ruby, TryConvert, Value};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use yrs::updates::decoder::Decode;
-use yrs::updates::encoder::{Encode, Encoder, EncoderV1, EncoderV2};
+use yrs::updates::encoder::{Encoder, EncoderV1, EncoderV2};
 use yrs::{Doc, OffsetKind, Options, ReadTxn, StateVector, SubscriptionId, Transact};
 
 #[magnus::wrap(class = "Y::Doc")]
@@ -24,12 +24,14 @@ impl YDoc {
         let mut options = Options::default();
         options.offset_kind = OffsetKind::Utf16;
 
+        let ruby = Ruby::get().unwrap();
         for arg in args {
             if let Some(int) = Integer::from_value(*arg) {
                 options.client_id = int.to_u64().unwrap();
             } else if let Some(hash) = RHash::from_value(*arg) {
-                if let Some(gc_val) = hash.get(magnus::Symbol::new("gc")) {
-                    if let Ok(gc_bool) = gc_val.try_convert::<bool>() {
+                let gc_sym = ruby.to_symbol("gc");
+                if let Some(gc_val) = hash.get(gc_sym) {
+                    if let Ok(gc_bool) = bool::try_convert(gc_val) {
                         options.skip_gc = !gc_bool;
                     }
                 }
