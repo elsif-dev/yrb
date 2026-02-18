@@ -53,7 +53,6 @@ RSpec.describe Y::Snapshot do
     expect(snapshot1).not_to eq(snapshot2)
   end
 
-  # rubocop:disable RSpec/ExampleLength
   it "reconstructs past state with diff_from_snapshot v1" do
     doc = Y::Doc.new(gc: false)
     text = doc.get_text("my text")
@@ -89,7 +88,6 @@ RSpec.describe Y::Snapshot do
 
     expect(past_text.to_s).to eq("hello")
   end
-  # rubocop:enable RSpec/ExampleLength
 
   it "raises when diff_from_snapshot is called on gc-enabled doc" do
     doc = Y::Doc.new
@@ -100,7 +98,10 @@ RSpec.describe Y::Snapshot do
 
     text << " world"
 
-    expect { doc.diff_from_snapshot(snapshot) }.to raise_error(RuntimeError, /garbage collection/)
+    expect do
+      doc.diff_from_snapshot(snapshot)
+    end.to raise_error(RuntimeError,
+                       /garbage collection/)
   end
 
   it "creates a doc with gc: false and client_id" do
