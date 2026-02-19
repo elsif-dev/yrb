@@ -6,7 +6,7 @@ use crate::yxml_fragment::YXmlFragment;
 use crate::yxml_text::YXmlText;
 use crate::YTransaction;
 use magnus::block::Proc;
-use magnus::{Error, Integer, RArray, Ruby, Value};
+use magnus::{Error, Integer, RArray, RHash, Ruby, Symbol, Value};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use yrs::updates::decoder::Decode;
@@ -19,12 +19,24 @@ pub(crate) struct YDoc(pub(crate) RefCell<Doc>);
 unsafe impl Send for YDoc {}
 
 impl YDoc {
-    pub(crate) fn ydoc_new(client_id: &[Value]) -> Self {
+    pub(crate) fn ydoc_new(args: &[Value]) -> Self {
+        let ruby = Ruby::get().unwrap();
         let mut options = Options::default();
-        if client_id.len() == 1 {
-            let value = client_id.first().unwrap();
-            options.client_id = Integer::from_value(*value).unwrap().to_u64().unwrap();
+
+        for value in args {
+            if let Some(id) = Integer::from_value(*value) {
+                options.client_id = id.to_u64().unwrap();
+            } else if let Some(hash) = RHash::from_value(*value) {
+                let gc_key = Symbol::new("gc");
+                if let Ok(Some(gc_val)) = hash.lookup::<_, Option<Value>>(gc_key) {
+                    // gc: false means skip_gc = true (disable garbage collection)
+                    if gc_val.is_kind_of(ruby.class_false_class()) {
+                        options.skip_gc = true;
+                    }
+                }
+            }
         }
+
         options.offset_kind = OffsetKind::Utf16;
 
         let doc = Doc::with_options(options);
