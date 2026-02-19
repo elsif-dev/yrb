@@ -6,6 +6,7 @@ use crate::yxml_fragment::YXmlFragment;
 use crate::yxml_text::YXmlText;
 use crate::YTransaction;
 use magnus::block::Proc;
+use magnus::value::ReprValue;
 use magnus::{Error, Integer, RArray, RHash, Ruby, Symbol, Value};
 use std::borrow::Borrow;
 use std::cell::RefCell;
