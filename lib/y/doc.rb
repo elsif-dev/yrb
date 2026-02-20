@@ -157,6 +157,22 @@ module Y
       xml_text
     end
 
+    # Creates a snapshot of the current document state
+    #
+    # @return [Y::Snapshot]
+    def snapshot
+      current_transaction { |tx| tx.snapshot }
+    end
+
+    # Computes the document state at the time of a previous snapshot,
+    # returned as a binary encoded update
+    #
+    # @param snapshot [Y::Snapshot] A previously captured snapshot
+    # @return [::Array<Integer>] Binary encoded update representing the state at snapshot time
+    def diff_from_snapshot(snapshot)
+      current_transaction { |tx| tx.encode_state_from_snapshot(snapshot) }
+    end
+
     # Creates a state vector of this document. This can be used to compare the
     # state of two documents with each other and to later on sync them.
     #

@@ -112,6 +112,22 @@ module Y
       ytransaction_state_vector_v2
     end
 
+
+    # Create a snapshot of the current transaction state
+    #
+    # @return [Y::Snapshot]
+    def snapshot
+      ytransaction_snapshot
+    end
+
+    # Encode the document state from a previous snapshot
+    #
+    # @param snapshot [Y::Snapshot]
+    # @return [::Array<Integer>]
+    def encode_state_from_snapshot(snapshot)
+      ytransaction_encode_state_from_snapshot_v1(snapshot)
+    end
+
     # @!method ytransaction_apply_update(update)
     #   Apply the encoded update within current transaction
     #

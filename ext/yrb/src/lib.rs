@@ -6,6 +6,7 @@ use crate::ydiff::YDiff;
 use crate::ydoc::YDoc;
 use crate::ymap::YMap;
 use crate::ytext::YText;
+use crate::ysnapshot::YSnapshot;
 use crate::ytransaction::YTransaction;
 use crate::yxml_element::YXmlElement;
 use crate::yxml_fragment::YXmlFragment;
@@ -20,6 +21,7 @@ mod yattrs;
 mod yawareness;
 mod ydiff;
 mod ydoc;
+mod ysnapshot;
 mod ymap;
 mod ytext;
 mod ytransaction;
@@ -222,6 +224,19 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
             method!(YTransaction::ytransaction_state_vector_v2, 0),
         )
         .expect("cannot define private method: ytransaction_state_vector_v2");
+
+    ytransaction
+        .define_private_method(
+            "ytransaction_snapshot",
+            method!(YTransaction::ytransaction_snapshot, 0),
+        )
+        .expect("cannot define private method: ytransaction_snapshot");
+    ytransaction
+        .define_private_method(
+            "ytransaction_encode_state_from_snapshot_v1",
+            method!(YTransaction::ytransaction_encode_state_from_snapshot_v1, 1),
+        )
+        .expect("cannot define private method: ytransaction_encode_state_from_snapshot_v1");
 
     let ytext = module
         .define_class("Text", ruby.class_object())
@@ -674,6 +689,17 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     ydiff
         .define_private_method("ydiff_attrs", method!(YDiff::ydiff_attrs, 0))
         .expect("cannot define private method: attrs");
+
+
+    let ysnapshot = module
+        .define_class("Snapshot", ruby.class_object())
+        .expect("cannot define class Y::Snapshot");
+    ysnapshot
+        .define_singleton_method("ysnapshot_decode_v1", function!(YSnapshot::ysnapshot_decode_v1, 1))
+        .expect("cannot define singleton method: ysnapshot_decode_v1");
+    ysnapshot
+        .define_private_method("ysnapshot_encode_v1", method!(YSnapshot::ysnapshot_encode_v1, 0))
+        .expect("cannot define private method: ysnapshot_encode_v1");
 
     Ok(())
 }

@@ -3,6 +3,7 @@ use crate::ymap::YMap;
 use crate::ytext::YText;
 use crate::yxml_element::YXmlElement;
 use crate::yxml_fragment::YXmlFragment;
+use crate::ysnapshot::YSnapshot;
 use crate::yxml_text::YXmlText;
 use magnus::{Error, Ruby};
 use std::cell::{RefCell, RefMut};
@@ -117,6 +118,30 @@ impl YTransaction {
             .unwrap()
             .state_vector()
             .encode_v2()
+    }
+
+
+    pub(crate) fn ytransaction_snapshot(&self) -> YSnapshot {
+        let txn = self.0.borrow();
+        let txn = txn.as_ref().unwrap();
+        let snapshot = txn.snapshot();
+        YSnapshot::from(snapshot)
+    }
+
+    pub(crate) fn ytransaction_encode_state_from_snapshot_v1(
+        &self,
+        snapshot: &YSnapshot,
+    ) -> Result<Vec<u8>, Error> {
+        let ruby = Ruby::get().unwrap();
+        let txn = self.0.borrow();
+        let txn = txn.as_ref().unwrap();
+        txn.encode_state_from_snapshot(&snapshot.0)
+            .map_err(|e| {
+                Error::new(
+                    ruby.exception_runtime_error(),
+                    format!("cannot encode state from snapshot: {:?}", e),
+                )
+            })
     }
 
     pub(crate) fn ytransaction_free(&self) {
