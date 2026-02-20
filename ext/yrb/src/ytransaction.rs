@@ -8,7 +8,7 @@ use crate::yxml_text::YXmlText;
 use magnus::{Error, Ruby};
 use std::cell::{RefCell, RefMut};
 use yrs::updates::decoder::Decode;
-use yrs::updates::encoder::Encode;
+use yrs::updates::encoder::{Encode, Encoder, EncoderV1};
 use yrs::{ReadTxn, TransactionMut, Update};
 
 #[magnus::wrap(class = "Y::Transaction")]
@@ -135,7 +135,9 @@ impl YTransaction {
         let ruby = Ruby::get().unwrap();
         let txn = self.0.borrow();
         let txn = txn.as_ref().unwrap();
-        txn.encode_state_from_snapshot(&snapshot.0)
+        let mut encoder = EncoderV1::new();
+        txn.encode_state_from_snapshot(&snapshot.0, &mut encoder)
+            .map(|_| encoder.to_vec())
             .map_err(|e| {
                 Error::new(
                     ruby.exception_runtime_error(),
