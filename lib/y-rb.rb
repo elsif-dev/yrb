@@ -18,6 +18,7 @@ require_relative "y/map"
 require_relative "y/text"
 require_relative "y/xml"
 require_relative "y/transaction"
+require_relative "y/undo_manager"
 require_relative "y/version"
 
 module Y

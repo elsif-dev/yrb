@@ -46,14 +46,18 @@ impl YUndoManager {
         let state_added = Arc::clone(&state);
         let sub_added = manager.observe_item_added(move |_txn, event| {
             let mut s = state_added.lock().unwrap();
+            // EventKind::Redo = normal forward edit added to undo stack
+            // EventKind::Undo = undo operation created item on redo stack
             match event.kind() {
-                EventKind::Undo => {
+                EventKind::Redo => {
+                    // Forward edit: new item on undo stack, clear redo stack
                     s.redo_metas.clear();
                     s.undo_metas.push(StackMeta {
                         meta: event.item.meta.clone(),
                     });
                 }
-                EventKind::Redo => {
+                EventKind::Undo => {
+                    // Undo operation: new item on redo stack
                     s.redo_metas.push(StackMeta {
                         meta: event.item.meta.clone(),
                     });
@@ -64,6 +68,8 @@ impl YUndoManager {
         let state_popped = Arc::clone(&state);
         let sub_popped = manager.observe_item_popped(move |_txn, event| {
             let mut s = state_popped.lock().unwrap();
+            // EventKind::Undo = item popped from undo stack (undo called)
+            // EventKind::Redo = item popped from redo stack (redo called)
             match event.kind() {
                 EventKind::Undo => {
                     s.undo_metas.pop();
