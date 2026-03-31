@@ -10,6 +10,7 @@ use crate::ysnapshot::YSnapshot;
 use crate::ytransaction::YTransaction;
 use crate::yxml_element::YXmlElement;
 use crate::yxml_fragment::YXmlFragment;
+use crate::yundo_manager::YUndoManager;
 use crate::yxml_text::YXmlText;
 
 use magnus::{function, method, Error, Module, Object, Ruby};
@@ -26,6 +27,7 @@ mod ymap;
 mod ytext;
 mod ytransaction;
 mod yvalue;
+mod yundo_manager;
 mod yxml_element;
 mod yxml_fragment;
 mod yxml_text;
@@ -122,6 +124,8 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     .expect("cannot define private method: ydoc_get_or_insert_xml_text");
     ydoc.define_private_method("ydoc_transact", method!(YDoc::ydoc_transact, 0))
         .expect("cannot define private method: ydoc_transact");
+    ydoc.define_private_method("ydoc_transact_with", method!(YDoc::ydoc_transact_with, 1))
+        .expect("cannot define private method: ydoc_transact_with");
 
     ydoc.define_private_method("ydoc_observe_update", method!(YDoc::ydoc_observe_update, 1))
         .expect("cannot define private method: ydoc_observe_update");
@@ -700,6 +704,50 @@ fn init(ruby: &Ruby) -> Result<(), Error> {
     ysnapshot
         .define_private_method("ysnapshot_encode_v1", method!(YSnapshot::ysnapshot_encode_v1, 0))
         .expect("cannot define private method: ysnapshot_encode_v1");
+
+    let yundo_manager = module
+        .define_class("UndoManager", ruby.class_object())
+        .expect("cannot define class Y::UndoManager");
+
+    yundo_manager
+        .define_singleton_method("new", function!(YUndoManager::yundo_manager_new, 2))
+        .expect("cannot define singleton method: yundo_manager_new");
+    yundo_manager
+        .define_private_method("yundo_manager_include_origin", method!(YUndoManager::yundo_manager_include_origin, 1))
+        .expect("cannot define private method");
+    yundo_manager
+        .define_private_method("yundo_manager_undo", method!(YUndoManager::yundo_manager_undo, 0))
+        .expect("cannot define private method");
+    yundo_manager
+        .define_private_method("yundo_manager_redo", method!(YUndoManager::yundo_manager_redo, 0))
+        .expect("cannot define private method");
+    yundo_manager
+        .define_private_method("yundo_manager_can_undo", method!(YUndoManager::yundo_manager_can_undo, 0))
+        .expect("cannot define private method");
+    yundo_manager
+        .define_private_method("yundo_manager_can_redo", method!(YUndoManager::yundo_manager_can_redo, 0))
+        .expect("cannot define private method");
+    yundo_manager
+        .define_private_method("yundo_manager_reset", method!(YUndoManager::yundo_manager_reset, 0))
+        .expect("cannot define private method");
+    yundo_manager
+        .define_private_method("yundo_manager_clear", method!(YUndoManager::yundo_manager_clear, 0))
+        .expect("cannot define private method");
+    yundo_manager
+        .define_private_method("yundo_manager_undo_stack_length", method!(YUndoManager::yundo_manager_undo_stack_length, 0))
+        .expect("cannot define private method");
+    yundo_manager
+        .define_private_method("yundo_manager_redo_stack_length", method!(YUndoManager::yundo_manager_redo_stack_length, 0))
+        .expect("cannot define private method");
+    yundo_manager
+        .define_private_method("yundo_manager_undo_stack_metas", method!(YUndoManager::yundo_manager_undo_stack_metas, 0))
+        .expect("cannot define private method");
+    yundo_manager
+        .define_private_method("yundo_manager_redo_stack_metas", method!(YUndoManager::yundo_manager_redo_stack_metas, 0))
+        .expect("cannot define private method");
+    yundo_manager
+        .define_private_method("yundo_manager_set_last_undo_meta", method!(YUndoManager::yundo_manager_set_last_undo_meta, 1))
+        .expect("cannot define private method");
 
     Ok(())
 }

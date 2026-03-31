@@ -110,6 +110,12 @@ impl YDoc {
         YTransaction::from(transaction)
     }
 
+    pub(crate) fn ydoc_transact_with(&self, origin: Vec<u8>) -> YTransaction {
+        let doc = self.0.borrow();
+        let transaction = doc.transact_mut_with(origin.as_slice());
+        YTransaction::from(transaction)
+    }
+
     pub(crate) fn ydoc_observe_update(&self, block: Proc) -> Result<SubscriptionId, Error> {
         let ruby = Ruby::get().unwrap();
         self.0

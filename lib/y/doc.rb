@@ -235,6 +235,26 @@ module Y
       @current_transaction = nil
     end
 
+    # Creates a transaction with an explicit origin for undo tracking.
+    #
+    # @param origin [String] the origin identifier for this transaction
+    # @yield [Y::Transaction] the transaction to use for operations
+    def transact_with(origin)
+      if @current_transaction
+        @current_transaction.free
+        @current_transaction = nil
+      end
+
+      origin_bytes = origin.is_a?(String) ? origin.bytes : origin
+      @current_transaction = ydoc_transact_with(origin_bytes)
+      @current_transaction.document = self
+
+      yield @current_transaction
+    ensure
+      @current_transaction&.free
+      @current_transaction = nil
+    end
+
     # @!visibility private
     def current_transaction(&block)
       raise "provide a block" unless block
